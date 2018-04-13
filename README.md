@@ -20,16 +20,32 @@ For all the Rubyists out there, I've converted this in to a [Ruby Gem](https://g
 - Edit `config.yml` and insert your configuration details
 
 - Use the script like this:
-	
+
+	To push to remote DB:
+
 	```bash
-	./mongo-sync push [options]		# Push DB to Remote
-	./mongo-sync pull [options]		# Pull DB to Local
+	./mongo-sync push [options]		# Push DB to Remote using DB name from config.yml
+
+	or 
+
+	./mongo-sync push [options] <dbname> # will push to remote db: dbname
+	```
+
+	To pull from remote DB:
+
+	```
+	./mongo-sync pull [options]		# Pull DB to Local, using DB name specified in config.yml
+
+	or 
+
+	./mongo-sync pull [options] <dbname> # Pull DB: <dbname> to local
 	```
 - Options
 
 	```
 	-y  # Skip confirmation
 	--config alternate-config-file.yml
+	[dbname] # Db name to push/pull overriding one specified in config.yml
 	```
 
 ## Notes
@@ -79,4 +95,3 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-

@@ -80,7 +80,11 @@ function get_script_dir {
 }
 
 function get_confirmation() {
-    read -p "Are you sure you want to $1? Enter 'yes': " mongo_confr
+    if [ "$1" == 'pull' ]; then
+        read -p "Are you sure you want to $1 from remote:$2 to local:$3 Enter 'yes': " mongo_confr
+    else
+        read -p "Are you sure you want to $1? local:$2 to remote:$3 Enter 'yes': " mongo_confr
+    fi
 
     case $mongo_confr in
         [yY][Ee][Ss] )  ;;
@@ -89,6 +93,7 @@ function get_confirmation() {
 }
 
 function load_configs {
+
     echo "load_configs"
     if [ -z "$CONFIG_FILE" ] ; then
         CONFIG_FILE="config.yml"
@@ -106,6 +111,10 @@ function load_configs {
        config_not_found $config
     fi
 
+    # db name specified on command line  takes precedence
+    db_to_dump="${dbname:-$remote_db}"
+    db_to_restore="${dbname:-$local_db}"
+
     # Loads:
     # - $local_db
     # - $local_host_port
@@ -119,21 +128,27 @@ function load_configs {
     # - $tunnel_on
     # - $tunnel_access_username
     # - $tunnel_access_port
-
+    echo "Database: $local_access_auth_database"
     LOCAL_CREDENTIALS=""
     if [[ ! -z $local_access_username ]] ; then
         LOCAL_CREDENTIALS="-u $local_access_username -p $local_access_password"
+        if [[ ! -z $local_access_auth_database ]] ; then
+            LOCAL_CREDENTIALS+=" --authenticationDatabase $local_access_auth_database"
+        fi
     fi
 
     REMOTE_CREDENTIALS=""
     if [[ ! -z $remote_access_username ]] ; then
         REMOTE_CREDENTIALS="-u $remote_access_username -p $remote_access_password"
+        if [[ ! -z $remote_access_auth_database ]] ; then
+            REMOTE_CREDENTIALS+=" --authenticationDatabase $remote_access_auth_database"
+        fi
     fi
 
     TUNNEL_CREDENTIALS="$tunnel_access_username@$remote_host_url"
     TUNNEL_PORT=27018
 
-    TMPDIR=/tmp/"$local_db"/dump
+    TMPDIR=/tmp/"$db_to_dump"/dump
 }
 
 function banner {
@@ -163,32 +178,37 @@ function close_tunnel {
 
 
 function pull {
+
+    load_configs
+
     banner
     if [ "$1" == false ] ; then
-        get_confirmation 'pull'
+        get_confirmation 'pull' $db_to_dump $db_to_restore
     fi
-    load_configs
+
 
     if [ "$tunnel_on" == true ] ; then
         open_tunnel
         remote_host_url="localhost"
         remote_host_port=$TUNNEL_PORT
     fi
-
-    echo "Dumping Remote DB to $TMPDIR... "
+    echo "$mongodump_options $dbname"
+    echo "Dumping Remote DB: $db_to_dump to $TMPDIR... with options: $mongodump_options "
     mongodump \
         -h "$remote_host_url":"$remote_host_port" \
-        -d "$remote_db" \
+        -d "$db_to_dump" \
         $REMOTE_CREDENTIALS \
+        "$mongodump_options" \
         -o "$TMPDIR" > /dev/null
     success_msg
 
-    echo "Overwriting Local DB with Dump... "
+    echo "Overwriting Local DB: db_to_restore  with Dump... with options $mongorestore_options"
     mongorestore \
         --port "$local_host_port" \
-        -d "$local_db" \
+        -d "$db_to_restore" \
         $LOCAL_CREDENTIALS \
-        "$TMPDIR"/"$remote_db" \
+        "$mongorestore_options" \
+        "$TMPDIR"/"$db_to_restore" \
         --drop > /dev/null
     success_msg
 
@@ -250,6 +270,8 @@ else
     skip=false
     shift
 
+    dbname="$2"
+
     while [ "${1+defined}" ]; do
         if [ "$1" == '--config' ] ; then
             shift
@@ -260,6 +282,8 @@ else
             fi
         elif [ "$1" == '-y' ] ; then
             skip=true
+        elif [[ ! -z "$1" ]]; then
+            dbname="$1"
         else
             usage_error "unrecognized option \"$1\""
         fi

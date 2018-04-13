@@ -7,6 +7,8 @@ local:
   access:
     username: 'local_mongo_user'
     password: 'local_mongo_pass'
+    auth_database: 'admin'
+  mongodump_options: ''
 
 remote:
   db: 'remote_db_name'
@@ -16,6 +18,7 @@ remote:
   access:
     username: 'remote_mongo_user'
     password: 'remote_mongo_pass'
+    auth_database: 'admin'
 
 tunnel:
   on: false
